@@ -59,27 +59,28 @@ void construct_totalizer(Node* n, vector<vector<int>>* clauses){
 	int m = n->label;
 
 	// Construct totalizer clauses for current node
-	for(unsigned int alpha = 0; alpha < m1; alpha++){
-		for(unsigned int beta = 0; beta < m2; beta++){
+	for(unsigned int alpha = 0; alpha <= m1; alpha++){
+		for(unsigned int beta = 0; beta <= m2; beta++){
 			unsigned int sigma = alpha + beta;
 			if(sigma <= m){
 				vector<int> c1, c2;
 				// Construct first clause
-				c1.push_back(-1 * n->left_child->variables[alpha]);
-				c1.push_back(-1 * n->right_child->variables[beta]);
-				c1.push_back(n->variables[sigma]);
+				if(sigma != 0) {
+					c1.push_back(n->variables[sigma-1]);
+					if(alpha != 0) { c1.push_back(-1 * n->left_child->variables[alpha-1]); }
+					if(beta != 0)  { c1.push_back(-1 * n->right_child->variables[beta-1]); }
+					clauses->push_back(c1);
+					cout << "(-a" << alpha << ", -b" << beta << ", r" << sigma << "): " << c1 << endl;
+				}
+				
 				// Construct second clause
-				if(alpha + 1 < m1)
-					c2.push_back(n->left_child->variables[alpha+1]);
-				if(beta + 1 < m2)
-					c2.push_back(n->right_child->variables[beta+1]);
-				if(sigma + 1 < m)
-					c2.push_back(-1 * n->variables[sigma+1]);
-				// Push back c1 and c2 to totalizer clauses
-				clauses->push_back(c1);
-				cout << c1 << endl;
-				clauses->push_back(c2);
-				cout << c2 << endl;
+				if(sigma + 1 <= m){
+					c2.push_back(-1 * n->variables[sigma]);
+					if(alpha + 1 <= m1) { c2.push_back(n->left_child->variables[alpha]); }
+					if(beta + 1 <= m2)  { c2.push_back(n->right_child->variables[beta]); }
+					clauses->push_back(c2);
+					cout << "(a" << alpha+1 << ", b" << beta+1 << ", -r" << sigma+1 << "): " << c2 << endl;
+				}					
 			}
 		}
 	}
@@ -91,7 +92,22 @@ void construct_totalizer(Node* n, vector<vector<int>>* clauses){
 		construct_totalizer(n->right_child, clauses);
 }
 
-int encode_constraint(vector<int> literals, int lower_bound, int upper_bound, int start_variable)
+void construct_comparator(vector<int>* output_variables, vector<vector<int>>* clauses, int lower_bound, int upper_bound){
+	vector<int> temp(1);
+	// Add s_i
+	for(unsigned int i = 0; i < lower_bound; i++){
+		temp[0] = output_variables->at(i);
+		clauses->push_back(temp);
+	}
+
+	// Add s_j
+	for(unsigned int j = upper_bound; j < output_variables->size(); j++){
+		temp[0] = -1 * output_variables->at(j);
+		clauses->push_back(temp);
+	}
+}
+
+int encode_constraint(vector<int> literals, int lower_bound, int upper_bound, int start_variable, vector<vector<int>>* encoding)
 {
 	int var = start_variable;
 	int used_literal = 0;
@@ -105,18 +121,39 @@ int encode_constraint(vector<int> literals, int lower_bound, int upper_bound, in
 
 	// Construct totalizer clauses
 	cout << "[INFO] Constructing totalizer clauses" << endl;
-	vector<vector<int>> totalizer_clauses;
-	construct_totalizer(root, &totalizer_clauses);
-	cout << "[INFO] A total of " << totalizer_clauses.size() << " totalizer clauses constucted successfully!" << endl;
-	cout << totalizer_clauses << endl;
+	construct_totalizer(root, encoding);
+	int num_totalizer_clauses = encoding->size();
+	cout << "[INFO] A total of " << num_totalizer_clauses << " totalizer clauses constucted successfully!" << endl;
 	cout << "**********************************************************" << endl;
+
+	// Construct comparator clauses
+	cout << "[INFO] Constructing comparator clauses" << endl;
+	construct_comparator(&(root->variables), encoding, lower_bound, upper_bound);
+	int num_comparator_clauses = encoding->size() - num_totalizer_clauses;
+	cout << "[INFO] A total of " << num_comparator_clauses << " comparator clauses constucted successfully!" << endl;
+	cout << "**********************************************************" << endl;
+
+	return (var - start_variable + 1);
+}
+
+void dump_dimacs_file(vector<vector<int>> *encoding, int num_encoding_variables, char *encoding_filename)
+{
+	ofstream encoding_file;
+	encoding_file.open(encoding_filename);
+	encoding_file << "p cnf " << num_encoding_variables << " " << encoding->size() << endl;
+	for(unsigned int i = 0; i < encoding->size(); i++){
+		for(unsigned int j = 0; j < encoding->at(i).size(); j++){
+			encoding_file << encoding->at(i).at(j) << " ";
+		}
+		encoding_file << "0" << endl;
+	}
 }
 
 int main(int argc, char* argv[])
 {
 	// Make sure the user specified constraints file
-	if(argc < 2){
-		cout << "[ERROR] Please specify cardinality constraints file" << endl;
+	if(argc < 3){
+		cout << "[ERROR] Please specify cardinality constraints file name and output file name" << endl;
 		return 0;
 	}
 
@@ -195,10 +232,15 @@ int main(int argc, char* argv[])
 	cout << "[INFO] Parsing of input file finished successfully!" << endl;
 	cout << "**********************************************************" << endl;
 	
-
+	vector<vector<int>> encoding;
+	int constraint_encoding_start = num_variables + 1;
+	int num_encoding_variables = 0;
 	for(unsigned int i = 0; i < num_constraints; i++){
-		encode_constraint(literals[i], lower_bounds[i], upper_bounds[i], num_variables);
+		num_encoding_variables += encode_constraint(literals[i], lower_bounds[i], upper_bounds[i], constraint_encoding_start, &encoding);
+		constraint_encoding_start = num_variables + num_encoding_variables;
 	}
+
+	dump_dimacs_file(&encoding, num_encoding_variables+num_variables, argv[2]);
 
 	cout << "[INFO] Encoding process finished successfully!" << endl;
 	return 1;
