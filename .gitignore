@@ -1,5 +1,10 @@
 encoding
+log
 test_cases/*
+test_cases/*.md
 reports/*.rpt
-ouptuts/*.out
+reports/*.md
+outputs/*.out
+outputs/*.md
+dimacs/*.dimacs
 dimacs/*.dimacs

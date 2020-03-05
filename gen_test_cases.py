@@ -3,7 +3,7 @@ from random import randint
 import random
 import os
 
-def sweep_constrained_literals(S_start, S_end, S_step, mu, k, num_constraints, minisat_path):
+def sweep_constrained_literals(S_start, S_end, S_step, mu, k, num_constraints, minisat_path, log):
 	
 	for S in range(S_start, S_end+1, S_step):
 
@@ -69,6 +69,7 @@ def sweep_constrained_literals(S_start, S_end, S_step, mu, k, num_constraints, m
 					encoding_time = line[4]
 
 		print('|%-16s|%-16s|%-16s|%-16s|%-16s|%-16s|%-16s|%-16s|%-16s|' % (S, lower_bound, upper_bound, num_constraints, sat, solver_time[1], variables, clauses, encoding_time))
+		log.write(('|%-16s|%-16s|%-16s|%-16s|%-16s|%-16s|%-16s|%-16s|%-16s|' % (S, lower_bound, upper_bound, num_constraints, sat, solver_time[1], variables, clauses, encoding_time)) + "\n")
 
 
 def main(minisat_path):
@@ -77,13 +78,20 @@ def main(minisat_path):
 	S_step = 100
 
 	num_constraints = 1
+	log = open("log", "w")
 
 	print((16*9+10) * "-")
+	log.write(((16*9+10) * "-") + "\n")
+
 	print('|%-16s|%-16s|%-16s|%-16s|%-16s|%-16s|%-16s|%-16s|%-16s|' % ("S", "MU", "K", "NUM_C", "OUTPUT", "SOLVER TIME (S)", "VARIABLES", "CLAUSES", "ENC TIME (S)"))
+	log.write(('|%-16s|%-16s|%-16s|%-16s|%-16s|%-16s|%-16s|%-16s|%-16s|' % ("S", "MU", "K", "NUM_C", "OUTPUT", "SOLVER TIME (S)", "VARIABLES", "CLAUSES", "ENC TIME (S)")) + "\n")
+
 	print((16*9+10) * "-")
+	log.write(((16*9+10) * "-") + "\n")
 	for k in range(20, 90, 10):
-		sweep_constrained_literals(S_start, S_end, S_step, 0, (1.0*k)/100.0, num_constraints, minisat_path)
+		sweep_constrained_literals(S_start, S_end, S_step, 0, (1.0*k)/100.0, num_constraints, minisat_path, log)
 	print((16*9+10) * "-")
+	log.write(((16*9+10) * "-") + "\n")
 
 
 minisat_path = "/home/andrew/2020_winter/csc2512/minisat"
