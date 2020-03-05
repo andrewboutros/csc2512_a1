@@ -2,9 +2,11 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <chrono>
 #include "node.cpp"
 
 using namespace std;
+using namespace std::chrono;
 
 template <typename T> 
 ostream& operator<<(ostream& os, const vector<T>& v) 
@@ -34,19 +36,19 @@ ostream& operator<<(ostream& os, const Node& n)
 
 Node* build_tree(vector<int> literals, int* used_literal, int* added_literal, int label, int* node_id){
 	Node* n = new Node(*node_id, label);
-	cout << "Created node N" << *node_id << ": ";
+	//cout << "Created node N" << *node_id << ": ";
 	(*node_id)++;
 	if(label == 1){
 		n->variables.push_back(literals[*used_literal]);
 		(*used_literal)++;
-		cout << *n << endl;
+		//cout << *n << endl;
 		return n;
 	} else {
 		for(unsigned int i = 0; i < label; i++){
 			n->variables.push_back(*added_literal);
 			(*added_literal)++;
 		}
-		cout << *n << endl;
+		//cout << *n << endl;
 		n->left_child = build_tree(literals, used_literal, added_literal, label/2, node_id);
 		n->right_child = build_tree(literals, used_literal, added_literal, label-(label/2), node_id);
 		return n;
@@ -70,7 +72,7 @@ void construct_totalizer(Node* n, vector<vector<int>>* clauses){
 					if(alpha != 0) { c1.push_back(-1 * n->left_child->variables[alpha-1]); }
 					if(beta != 0)  { c1.push_back(-1 * n->right_child->variables[beta-1]); }
 					clauses->push_back(c1);
-					cout << "(-a" << alpha << ", -b" << beta << ", r" << sigma << "): " << c1 << endl;
+					//cout << "(-a" << alpha << ", -b" << beta << ", r" << sigma << "): " << c1 << endl;
 				}
 				
 				// Construct second clause
@@ -79,7 +81,7 @@ void construct_totalizer(Node* n, vector<vector<int>>* clauses){
 					if(alpha + 1 <= m1) { c2.push_back(n->left_child->variables[alpha]); }
 					if(beta + 1 <= m2)  { c2.push_back(n->right_child->variables[beta]); }
 					clauses->push_back(c2);
-					cout << "(a" << alpha+1 << ", b" << beta+1 << ", -r" << sigma+1 << "): " << c2 << endl;
+					//cout << "(a" << alpha+1 << ", b" << beta+1 << ", -r" << sigma+1 << "): " << c2 << endl;
 				}					
 			}
 		}
@@ -117,21 +119,21 @@ int encode_constraint(vector<int> literals, int lower_bound, int upper_bound, in
 	cout << "[INFO] Building binary tree" << endl;
 	Node* root = build_tree(literals, &used_literal, &var, literals.size(), &node_id);
 	cout << "[INFO] Tree built successfully!" << endl;
-	cout << "**********************************************************" << endl;
+	//cout << "**********************************************************" << endl;
 
 	// Construct totalizer clauses
-	cout << "[INFO] Constructing totalizer clauses" << endl;
+	cout << "[INFO] Constructing totalizer clauses: ";
 	construct_totalizer(root, encoding);
 	int num_totalizer_clauses = encoding->size();
-	cout << "[INFO] A total of " << num_totalizer_clauses << " totalizer clauses constucted successfully!" << endl;
-	cout << "**********************************************************" << endl;
+	cout << "A total of " << num_totalizer_clauses << " totalizer clauses constucted successfully!" << endl;
+	//cout << "**********************************************************" << endl;
 
 	// Construct comparator clauses
-	cout << "[INFO] Constructing comparator clauses" << endl;
+	cout << "[INFO] Constructing comparator clauses: ";
 	construct_comparator(&(root->variables), encoding, lower_bound, upper_bound);
 	int num_comparator_clauses = encoding->size() - num_totalizer_clauses;
-	cout << "[INFO] A total of " << num_comparator_clauses << " comparator clauses constucted successfully!" << endl;
-	cout << "**********************************************************" << endl;
+	cout << "A total of " << num_comparator_clauses << " comparator clauses constucted successfully!" << endl;
+	//cout << "**********************************************************" << endl;
 
 	return (var - start_variable + 1);
 }
@@ -167,7 +169,7 @@ int main(int argc, char* argv[])
 	}
 	
 	cout << "**********************************************************" << endl;
-	cout << "[INFO] Started parsing input file" << endl;
+	cout << "[INFO] Started parsing input file: " << argv[1] << endl;
 	// Get number of variables in the original problem
 	int num_variables;
 	if(getline(constraints_file, line)){
@@ -183,7 +185,7 @@ int main(int argc, char* argv[])
 	int num_constraints;
 	if(getline(constraints_file, line)){
 		num_constraints = stoi(line);
-		cout << "[INFO] A total of " << num_constraints << " cardinality constraint(s) are specified in the input file." << endl;
+		cout << "[INFO] A total of " << num_constraints << " cardinality constraint(s) specified in the input file." << endl;
 	} else {
 		cout << "[ERROR] Input file format is invalid! Refer to the README file for more information about the input file format" << endl;
 		return 0;
@@ -196,6 +198,7 @@ int main(int argc, char* argv[])
 	vector<int> upper_bounds;
 	int num_line = 0;
 	int temp;
+	auto start = high_resolution_clock::now(); 
 	while(getline(constraints_file, line)){
 		stringstream linestream;
 		linestream.str(line);
@@ -220,28 +223,45 @@ int main(int argc, char* argv[])
 			num_parsed_constraints++;
 		}
 	}
+	auto stop = high_resolution_clock::now(); 
+	auto parsing_time = duration_cast<microseconds>(stop - start);
+	cout << "[INFO] Parsing Time: " << parsing_time.count() << " (us)" << endl;
 	
 	if(num_parsed_constraints < num_constraints){
 		cout << "[ERROR] Input file format is invalid! Refer to the README file for more information about the input file format" << endl;
 		return 0;
 	}
 
-	cout << "Literals of cardinality constraints: " << literals << endl;
-	cout << "Lower bounds: " << lower_bounds << endl;
-	cout << "Upper bounds: " << upper_bounds << endl;
+	//cout << "Literals of cardinality constraints: " << literals << endl;
+	//cout << "Lower bounds: " << lower_bounds << endl;
+	//cout << "Upper bounds: " << upper_bounds << endl;
 	cout << "[INFO] Parsing of input file finished successfully!" << endl;
-	cout << "**********************************************************" << endl;
+	//cout << "**********************************************************" << endl;
 	
 	vector<vector<int>> encoding;
 	int constraint_encoding_start = num_variables + 1;
 	int num_encoding_variables = 0;
+	start = high_resolution_clock::now();
 	for(unsigned int i = 0; i < num_constraints; i++){
 		num_encoding_variables += encode_constraint(literals[i], lower_bounds[i], upper_bounds[i], constraint_encoding_start, &encoding);
 		constraint_encoding_start = num_variables + num_encoding_variables;
 	}
-
-	dump_dimacs_file(&encoding, num_encoding_variables+num_variables, argv[2]);
-
+	stop = high_resolution_clock::now(); 
+	cout << "[INFO] Number of extra variables = " << num_encoding_variables << endl;
+	auto encoding_time = duration_cast<microseconds>(stop - start);
+	cout << "[INFO] Encoding Time: " << encoding_time.count() << " (us)" << endl;
 	cout << "[INFO] Encoding process finished successfully!" << endl;
+
+	start = high_resolution_clock::now();
+	dump_dimacs_file(&encoding, num_encoding_variables+num_variables, argv[2]);
+	stop = high_resolution_clock::now(); 
+	auto generating_time = duration_cast<microseconds>(stop - start);
+	cout << "[INFO] DIMACS dumping Time: " << generating_time.count() << " (us)" << endl;
+
+	double total_time = (0.0 + parsing_time.count()+encoding_time.count()+generating_time.count()) / 1000000.0;
+	cout << "[INFO] Total Encoding Time: " << total_time << " (s)" << endl;
+
+	cout << "[INFO] Generating DIMACS file finished successfully!" << endl;
+	cout << "**********************************************************" << endl;
 	return 1;
 }
