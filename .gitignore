@@ -1,3 +1,4 @@
+*.png
 encoding
 log
 test_cases/*
