@@ -1,0 +1,5 @@
+encoding
+test_cases/*
+reports/*.rpt
+ouptuts/*.out
+dimacs/*.dimacs
